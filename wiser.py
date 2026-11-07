@@ -27,29 +27,38 @@ class WiserController:
         await self.wiser.read_hub_data()
         print("Successfully connected and synced hub state.")
 
-    async def get_rooms(self) -> dict:
-        """Returns a dict of rooms mapped to timestamp, current_temp, and setpoint_temp."""
+    async def get_room(self, room_name: str) -> dict:
+        """Returns a dict of room mapped to timestamp, current_temp, and setpoint_temp."""
         if not self.wiser:
             raise ConnectionError("Not connected to Wiser Hub. Call connect() first.")
 
         await self.wiser.read_hub_data()
-        rooms_dict = {}
+        room_dict = {}
         timestamp = datetime.now().isoformat()
 
-        for room in self.wiser.rooms.all:
-            current_temp = room.current_temperature if getattr(room, "current_temperature", None) is not None else None
-            
-            raw_setpoint = room.current_target_temperature if getattr(room, "current_target_temperature", None) is not None else None
-            # Handle Wiser's off indicator (negative values like -20)
-            setpoint_temp = raw_setpoint if raw_setpoint is not None and raw_setpoint >= 0 else "Off"
-            
-            rooms_dict[room.name] = {
-                "timestamp": timestamp,
-                "current_temp": current_temp,
-                "setpoint_temp": setpoint_temp
-            }
+        room = self.wiser.rooms.get_by_name(room_name)
+        
+        if not room:
+            raise ValueError(f"Room '{room_name}' not found on Wiser Hub.")
+    
+        current_temp = room.current_temperature if getattr(room, "current_temperature", None) is not None else None
+        
+        raw_setpoint = room.current_target_temperature if getattr(room, "current_target_temperature", None) is not None else None
+        # Handle Wiser's off indicator (negative values like -20)
+        setpoint_temp = raw_setpoint if raw_setpoint is not None and raw_setpoint >= 0 else "Off"
 
-        return rooms_dict
+        calling_for_heat = getattr(room, "is_heating", False)
+                        
+        
+        room_dict = {
+            "room": room_name,
+            "timestamp": timestamp,
+            "current_temp": current_temp,
+            "setpoint_temp": setpoint_temp,
+            "calling_for_heat": calling_for_heat
+        }
+
+        return room_dict
 
     async def set_room_schedule(self, room_name: str, day_of_week: str, daily_timetable: dict):
         """
@@ -154,6 +163,8 @@ class WiserController:
                     room = self.wiser.rooms.get_by_id(device.room_id)
                     if room:
                         room_name = room.name
+
+                
     
                 battery_status_list.append({
                     "device_id": device.id,
@@ -193,23 +204,21 @@ async def main():
     await controller.connect()
     
     # 1. Fetch rooms and thermal metrics
-    rooms = await controller.get_rooms()
-    print("Rooms Status:", rooms)
+    room = await controller.get_room("Lounge")
+    print("Room Status:", room)
     
     # 2. Check device battery levels
     batteries = await controller.get_device_battery()
     print("Device Batteries:", batteries)
-
-    print("\nValid rooms:", list(rooms.keys()))
     
-    # 3. Example schedule compilation test
-    friday_schedule = {
-        "07:00": 19.5,
-        "09:30": 12.0,  # Setback
-        "17:00": 21.0,  # Pre-heat for evening event
-        "22:00": "Off"  # Shutdown
-    }
-    await controller.set_room_schedule("Front Room", "Friday", friday_schedule)
+    # # 3. Example schedule compilation test
+    # friday_schedule = {
+    #     "07:00": 19.5,
+    #     "09:30": 12.0,  # Setback
+    #     "17:00": 21.0,  # Pre-heat for evening event
+    #     "22:00": "Off"  # Shutdown
+    # }
+    # await controller.set_room_schedule("Front Room", "Friday", friday_schedule)
 
 if __name__ == "__main__":
     asyncio.run(main())
