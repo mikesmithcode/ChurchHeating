@@ -27,7 +27,7 @@ class WiserController:
         await self.wiser.read_hub_data()
         print("Successfully connected and synced hub state.")
 
-    async def get_room(self, room_name: str) -> dict:
+    async def get_room(self, room_name="Lounge") -> dict:
         """Returns a dict of room mapped to timestamp, current_temp, and setpoint_temp."""
         if not self.wiser:
             raise ConnectionError("Not connected to Wiser Hub. Call connect() first.")
@@ -174,6 +174,55 @@ class WiserController:
                 })
     
         return battery_status_list
+
+    async def boost_room(self, room_name: str, temp: float = 21.0, duration_minutes: int = 60):
+        """
+        Boosts a specific room to a target temperature for a set duration (in minutes).
+        """
+        if not self.wiser:
+            raise ConnectionError("Not connected to Wiser Hub. Call connect() first.")
+
+        await self.wiser.read_hub_data()
+        room = next((r for r in self.wiser.rooms.all if r.name.lower() == room_name.lower()), None)
+        
+        if not room:
+            raise ValueError(f"Room '{room_name}' not found on Wiser Hub.")
+
+        print(f"Boosting room '{room.name}' to {temp}°C for {duration_minutes} minutes...")
+        
+        # Wiser API native boost method takes temperature and duration in minutes
+        try:
+            success = await room.boost(temp, duration_minutes)
+            if success:
+                print(f"Successfully boosted {room.name}.")
+            else:
+                print(f"Failed to apply boost to {room.name}.")
+            return success
+        except Exception as ex:
+            print(f"Error executing room boost: {ex}")
+            raise
+
+    async def cancel_boost(self, room_name: str):
+        """Cancels any active boost or manual override on a specified room, returning to Auto schedule."""
+        if not self.wiser:
+            raise ConnectionError("Not connected to Wiser Hub. Call connect() first.")
+
+        await self.wiser.read_hub_data()
+        room = next((r for r in self.wiser.rooms.all if r.name.lower() == room_name.lower()), None)
+        
+        if not room:
+            raise ValueError(f"Room '{room_name}' not found on Wiser Hub.")
+
+        print(f"Cancelling boost/override for room '{room.name}'...")
+        
+        try:
+            # Revert the room back to Auto mode, which clears active boosts and overrides
+            await room.set_mode("Auto")
+            await self.wiser.read_hub_data()
+            return True
+        except Exception as ex:
+            print(f"Error cancelling boost: {ex}")
+            raise
 
 def create_timestamp(date_str: str, time_str: str) -> datetime:
     """

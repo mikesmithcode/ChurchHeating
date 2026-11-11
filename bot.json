@@ -1,0 +1,22 @@
+{
+    "bot_username": "ChurchHeatingBot",
+    "chat_id": -5572583880,
+    "priority_commands": [],
+    "standard_commands": [
+        {
+            "command": "/temp",
+            "description": "Request current room temperatures.",
+            "args": []
+        },
+        {
+            "command": "/battery",
+            "description": "Returns current battery charge info in sensors",
+            "args": []
+        },
+        {
+            "command": "/check",
+            "description": "Runs a test to check the heating is working",
+            "args": []
+        }
+    ]
+}

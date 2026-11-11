@@ -3,11 +3,13 @@ name = "heating"
 version = "0.1.0"
 description = "Automated church heating control and telemetry stack"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "pandas",
     "matplotlib",
     "numpy",
     "aioWiserHeatAPI",
-    "python-dotenv"
+    "asyncio",
+    "python-dotenv",
+    "comms-bot @ git+https://github.com/mikesmithcode/comms_bot.git",
 ]
